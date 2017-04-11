@@ -1,4 +1,45 @@
 *.class
+*.tmp
+*.bak
+*.swp
+*~.nib
+*.sic
+*.deb
+*.*~
+.settings/
+.loadpath
+.recommenders
+.metadata
+local.properties
+dependency-reduced-pom.xml
+
+**/target/
+
+# IntelliJ files
+.idea/
+*.iws
+*.iml
+.idea_modules/
+
+# Eclipse files
+.project
+.launch
+.classpath
+.buildpath
+.target
+
+# Netbeans files
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+nbactions.xml
+.nb-gradle/
+build.xml
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
