@@ -1,0 +1,65 @@
+##
+## This example is a moderately complex package
+## descriptor. It only contains mandatory and
+## optional fields.
+##
+## @author Michael Bredel
+##
+---
+descriptor_version: "1.0"
+
+vendor: "eu.sonata-nfv.nec"
+name: "son-resolver-test"
+version: "0.1.0"
+maintainer: "Michael Bredel, NEC Labs Europe"
+description: > 
+  "The package descriptor to test son-resolver."
+
+entry_service_template: "/service_descriptors/sonata-demo.yml"
+sealed: false
+
+package_content:
+  - name: "/service_descriptors/sonata-demo.yml"
+    content-type: "application/sonata.service_descriptor"
+    md5: "0bb347f5bcd4986fccfc44ee87932c48"
+  - name: "/function_descriptors/iperf-vnfd.yml"
+    content-type: "application/sonata.function_descriptor"
+    md5: "44cddd50883ce5256f127f678ae89e9a"
+  - name: "/function_descriptors/firewall-vnfd.yml"
+    content-type: "application/sonata.function_descriptor"
+    md5: "17ce9e07f3d215528ab8ecc98cd97d09"
+  - name: "/function_descriptors/tcpdump-vnfd.yml"
+    content-type: "application/sonata.function_descriptor"
+    md5: "df6c8e927750b2e8bf7b512ab581ea5a"
+  - name: "/docker_files/iperf/Dockerfile"
+    content-type: "application/sonata.docker_files"
+    md5: "5bea7b1f2f73803946674adecaaa9246"
+  - name: "/docker_files/iperf/start.sh"
+    content-type: "application/x-sh"
+    md5: "5db937fdadb488559eb765b64efcf8c4"
+  - name: "/docker_files/firewall/Dockerfile"
+    content-type: "application/sonata.docker_files"
+    md5: "fed89e35d173e6aeaf313e1a9ab3f552"
+  - name: "/docker_files/firewall/start.sh"
+    content-type: "application/x-sh"
+    md5: "17d604d460b8768ac7277ba8ae65be4b"
+  - name: "/docker_files/tcpdump/Dockerfile"
+    content-type: "application/sonata.docker_files"
+    md5: "e0d2bb965744161ffb0f8af459a589e3"
+  - name: "/docker_files/tcpdump/start.sh"
+    content-type: "application/x-sh"
+    md5: "95fd94539c7ceb2fbcce8e24dc30b6ba"
+
+##
+## The artifact dependencies that should be
+## downloaded by son-resolver.
+##
+artifact_dependencies:
+  - name: "test-image"
+    vendor: "nec"
+    version: "1.0"
+    url: "https://www.google.de/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"
+    md5: "8f9327db2597fa57d2f42b4a6c5a9855"
+    credentials:
+      username: "username"
+      password: "password"
