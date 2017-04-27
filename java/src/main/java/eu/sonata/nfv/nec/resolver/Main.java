@@ -36,6 +36,7 @@ import eu.sonata.nfv.nec.resolver.core.Application;
 import eu.sonata.nfv.nec.resolver.core.ApplicationModule;
 import eu.sonata.nfv.nec.resolver.core.CliParameters;
 import eu.sonata.nfv.nec.resolver.core.GuiceInjectedActor;
+import eu.sonata.nfv.nec.resolver.database.DatabaseModule;
 import eu.sonata.nfv.nec.resolver.download.DownloadActor;
 import eu.sonata.nfv.nec.resolver.eventBus.EventBusModule;
 import eu.sonata.nfv.nec.resolver.store.StoreModule;
@@ -89,6 +90,7 @@ public class Main {
                 new ApplicationModule(),
                 new ConfigurationModule(),
                 new StoreModule(),
+                new DatabaseModule(),
                 new EventBusModule()
         );
     }
