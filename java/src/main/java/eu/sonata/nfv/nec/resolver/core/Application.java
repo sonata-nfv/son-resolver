@@ -71,8 +71,6 @@ public class Application {
         // Post a package descriptor.
         post(Routes.PACKAGE_DESCRIPTORS, packageController::postPackageDescriptor);
 
-        get("/testPackageController", packageController::testPackageController);
-
         // Get a list of available images.
         get(Routes.IMAGES, imageController::getImages);
     }
