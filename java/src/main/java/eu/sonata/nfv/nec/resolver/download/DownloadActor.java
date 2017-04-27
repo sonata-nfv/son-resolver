@@ -30,18 +30,19 @@ package eu.sonata.nfv.nec.resolver.download;
 import akka.actor.UntypedActor;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
-import eu.sonata.nfv.nec.resolver.configuration.ConfigurationService;
-import eu.sonata.nfv.nec.resolver.eventBus.Context;
+import com.mashape.unirest.http.exceptions.UnirestException;
+import com.mashape.unirest.request.GetRequest;
+import eu.sonata.nfv.nec.resolver.core.exceptions.persistence.PersistenceException;
+import eu.sonata.nfv.nec.resolver.database.DatabaseService;
 import eu.sonata.nfv.nec.resolver.eventBus.EventBusService;
+import eu.sonata.nfv.nec.resolver.model.Artifact;
 import eu.sonata.nfv.nec.resolver.store.StoreService;
-import jdk.internal.util.xml.impl.Input;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.InputStream;
-import java.net.URL;
 
 /**
  * The download actor starts downloading an
@@ -54,11 +55,12 @@ import java.net.URL;
  */
 public class DownloadActor extends UntypedActor {
 
-    /** */
+    /** The logger. */
     private static final Logger LOGGER = LoggerFactory.getLogger(DownloadActor.class);
-    /** The configuration service. */
+
+    /** The database service. */
     @Inject
-    private ConfigurationService configurationService;
+    private DatabaseService databaseService;
     /** The store service. */
     @Inject
     private StoreService storeService;
@@ -73,43 +75,113 @@ public class DownloadActor extends UntypedActor {
     }
 
     @Override
-    public void onReceive(Object o) throws Throwable {
+    public void onReceive(Object o) {
         if (o instanceof DownloadEvents.StartDownload) {
             DownloadEvents.StartDownload event = (DownloadEvents.StartDownload) o;
             LOGGER.trace("Received an event of type DownloadEvents.StartDownload: " + event);
-
-            String url = (String) event.getContext().get(DownloadEvents.StartDownload.URI);
-
-            // Initialize some objects we need.
-            String fileName;
-            Context context;
-
-            // Check if we have the artifact already on stock.
-
-            // Store persist the download information such that we can resume in case of an App failure.
-
-            // Actually start the download.
-            HttpResponse<InputStream> response = Unirest
-                    .get(url)
-                    .asBinary();
-            if (response != null && response.getStatus() == HttpStatus.SC_OK) {
-                fileName = storeService.create("test", response.getBody());
-            } else {
-                LOGGER.error("Could not download the artifact: " + response.getStatusText());
-                context = new Context()
-                        .add("Response", response);
-                this.eventBusService.publish(new DownloadEvents.DownloadError(context));
-                return;
-            }
-
-            // Update (delete) the persisted information on the download.
-
-            // Finally, tell everyone that the download is finished.
-            context = new Context()
-                    .add("fileName", fileName);
-            this.eventBusService.publish(new DownloadEvents.DownloadFinished(context));
+            Artifact artifact = (Artifact) event.getContext().get(DownloadEvents.StartDownload.ARTIFACT);
+            this.downloadArtifact(artifact);
         } else {
             unhandled(o);
         }
+    }
+
+    /**
+     * Start the download of an artifact.
+     *
+     * @param artifact The artifact (and its information) to download.
+     */
+    private void downloadArtifact(Artifact artifact) {
+        // The file name, i.e. the uuid of the file stored.
+        String fileName;
+
+        // Check if we have the artifact already on stock.
+        if (this.isArtifactInStore(artifact)) {
+            fileName = artifact.uuid;
+            this.eventBusService.publish(new DownloadEvents.DownloadFinished("fileName", fileName));
+            return;
+        }
+
+        // Store the download information such that we can resume in case of an app failure.
+        try {
+            this.saveDownloadInformation(artifact);
+        } catch (PersistenceException e) {
+            LOGGER.error("Could not persist the artifact meta-data: " + e, e);
+            this.eventBusService.publish(new DownloadEvents.DownloadError("exception", e));
+            return;
+        }
+
+        // Actually start the download.
+        GetRequest getRequest = Unirest.get(artifact.url);
+        if (artifact.credentials.username != null && artifact.credentials.password != null) {
+            getRequest.basicAuth(artifact.credentials.username, artifact.credentials.password);
+        }
+
+        try {
+            HttpResponse<InputStream> response = getRequest.asBinary();
+            if (response != null && response.getStatus() == HttpStatus.SC_OK) {
+                fileName = storeService.create(artifact.uuid, response.getBody());
+            } else {
+                assert response != null;
+                LOGGER.error("Could not download the artifact: " + response.getStatusText());
+                this.eventBusService.publish(new DownloadEvents.DownloadError("response", response));
+                return;
+            }
+        } catch (UnirestException | NullPointerException e) {
+            LOGGER.error("Could not download the artifact: " + e);
+            this.eventBusService.publish(new DownloadEvents.DownloadError("exception", e));
+            return;
+        }
+
+        // Update the persisted information on the download.
+        try {
+            artifact.persistent = true;
+            this.updateDownloadInformation(artifact);
+        } catch (PersistenceException e) {
+            LOGGER.error("Could not persist the artifact meta-data.", e);
+            this.eventBusService.publish(new DownloadEvents.DownloadError("exception", e));
+            return;
+        }
+
+        // Finally, tell everyone that the download is finished.
+        this.eventBusService.publish(new DownloadEvents.DownloadFinished("fileName", fileName));
+    }
+
+    /**
+     * Stores the artifact information in the persistence store. Checks
+     * if the artifact information is stored in the persistence store
+     * already. If yes, it just updates the information. If not, it
+     * creates a new entry in the database.
+     *
+     * @param artifact The artifact to store.
+     */
+    private void saveDownloadInformation(Artifact artifact) throws PersistenceException {
+        Artifact storedArtifact = this.databaseService.read(artifact.vendor, artifact.name, artifact.version);
+        if (storedArtifact != null) {
+            artifact.uuid = storedArtifact.uuid;
+        } else {
+            artifact.uuid = this.databaseService.create(artifact);
+        }
+    }
+
+    /**
+     * Update the artifact information in the persistence store.
+     *
+     * @param artifact The artifact to update.
+     */
+    private void updateDownloadInformation(Artifact artifact) throws PersistenceException {
+        this.databaseService.update(artifact);
+    }
+
+    /**
+     * Checks if the given artifact is in store. If
+     * true, we don't need to download it again.
+     *
+     * @param artifact The artifact to check.
+     * @return True if the artifact is in store already.
+     */
+    private boolean isArtifactInStore(Artifact artifact) {
+        artifact = this.databaseService.read(artifact.vendor, artifact.name, artifact.version);
+        return artifact != null && artifact.persistent;
     }
 }

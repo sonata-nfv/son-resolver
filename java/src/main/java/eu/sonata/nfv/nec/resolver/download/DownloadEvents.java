@@ -55,6 +55,9 @@ public final class DownloadEvents {
         public static final String USERNAME = "username";
         /** The password string used for the context information,. */
         public static final String PASSWORD = "password";
+        /** The artifact related to the start download event. */
+        public static final String ARTIFACT = "artifact";
+
 
         /**
          * Constructor that allows to transport context information. The
@@ -109,6 +112,19 @@ public final class DownloadEvents {
             super("The download has finished");
             this.context = context;
         }
+
+        /**
+         * Convenient constructor that creates a context object and
+         * store the given key-value parameter.
+         *
+         * @param key The key for the context object.
+         * @param o The value for the context object.
+         */
+        public DownloadFinished(String key, Object o) {
+            super("The download did not complete due to an error.");
+            this.context = new Context()
+                    .add(key, o);
+        }
     }
 
     /**
@@ -126,6 +142,19 @@ public final class DownloadEvents {
         public DownloadError(Context context) {
             super("The download did not complete due to an error.");
             this.context = context;
+        }
+
+        /**
+         * Convenient constructor that creates a context object and
+         * store the given key-value parameter.
+         *
+         * @param key The key for the context object.
+         * @param o The value for the context object.
+         */
+        public DownloadError(String key, Object o) {
+            super("The download did not complete due to an error.");
+            this.context = new Context()
+                    .add(key, o);
         }
     }
 }

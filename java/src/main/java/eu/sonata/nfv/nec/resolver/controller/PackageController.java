@@ -27,19 +27,30 @@
  */
 package eu.sonata.nfv.nec.resolver.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import eu.sonata.nfv.nec.resolver.configuration.ConfigurationService;
 import eu.sonata.nfv.nec.resolver.download.DownloadEvents;
 import eu.sonata.nfv.nec.resolver.eventBus.Context;
 import eu.sonata.nfv.nec.resolver.eventBus.EventBusService;
+import eu.sonata.nfv.nec.resolver.model.Artifact;
+import org.apache.http.HttpStatus;
 import spark.Request;
 import spark.Response;
 
 import javax.inject.Inject;
+import java.io.IOException;
+import java.util.ArrayList;
 
 /**
  * @author Michael Bredel
  */
 public class PackageController {
+
+    /** The field name of the artifact dependencies in the package descriptor. */
+    private final String ARTIFACT_DEPENDENCIES = "artifact_dependencies";
 
     /** The configuration service. */
     @SuppressWarnings("unused")
@@ -79,35 +90,43 @@ public class PackageController {
     public String postPackageDescriptor(Request req, Response res) {
 
         // Get the package descriptor.
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode packageDescriptorNode;
+        try {
+            packageDescriptorNode = mapper.readTree(req.body());
+        } catch (IOException e) {
+            res.status(HttpStatus.SC_BAD_REQUEST);
+            return "ERROR";
+        }
 
-        // validate the package descriptor.
+        // Validate the package descriptor (optionally).
 
-        // Extract the resolvers from the package descriptor.
+        // Extract the resolvers from the package descriptor (optionally).
 
-        // Extract the artifact from the package descriptor.
+        // Extract the artifact dependencies from the package descriptor.
+        ArrayList<Artifact> artifactDependencies = new ArrayList<>();
+        try {
+            ArrayNode artifacts = (ArrayNode) packageDescriptorNode.findValue(ARTIFACT_DEPENDENCIES);
+            for (JsonNode artifact : artifacts) {
+                artifactDependencies.add(mapper.treeToValue(artifact, Artifact.class));
+            }
+        } catch (NullPointerException | ClassCastException | JsonProcessingException e) {
+            e.printStackTrace();
+            res.status(HttpStatus.SC_BAD_REQUEST);
+            return "ERROR";
+        }
 
         // Emit an event to download the artifact.
-        Context context = new Context()
-                .add(DownloadEvents.StartDownload.USERNAME, "username")
-                .add(DownloadEvents.StartDownload.PASSWORD, "password")
-                .add(DownloadEvents.StartDownload.URI, "http://files.sonata-nfv.eu/test");
-        eventBusService.publish(new DownloadEvents.StartDownload(context));
+        for (Artifact artifact : artifactDependencies) {
+            Context context = new Context()
+                    .add(DownloadEvents.StartDownload.ARTIFACT, artifact)
+                    .add(DownloadEvents.StartDownload.USERNAME, artifact.credentials.username)
+                    .add(DownloadEvents.StartDownload.PASSWORD, artifact.credentials.password)
+                    .add(DownloadEvents.StartDownload.URI, artifact.url);
+            eventBusService.publish(new DownloadEvents.StartDownload(context));
+        }
 
-        return null;
-    }
-
-    /**
-     *
-     * @param req
-     * @param res
-     * @return
-     */
-    public String testPackageController(Request req, Response res) {
-        Context context = new Context()
-                .add(DownloadEvents.StartDownload.USERNAME, "username")
-                .add(DownloadEvents.StartDownload.PASSWORD, "password")
-                .add(DownloadEvents.StartDownload.URI, "http://files.sonata-nfv.eu/test");
-        eventBusService.publish(new DownloadEvents.StartDownload(context));
-        return "TEST Package Controller";
+        // Just return.
+        return "SUCCESS";
     }
 }
