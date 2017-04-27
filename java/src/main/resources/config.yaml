@@ -1,1 +1,10 @@
 ---
+database:
+  uri: "/tmp/son-resolver/database/images.json"
+  db: "mydb"
+  user: "user"
+  password: "password"
+storage:
+  uri: "/tmp/son-resolver/images"
+  user: "user"
+  password: "password"
