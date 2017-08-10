@@ -11,7 +11,26 @@ You may contribute to the editor similar to other SONATA (sub-) projects, i.e. b
 
 #### Building
 
-The SONATA editor is written in Java and uses the Maven build tool.
+The SONATA editor is written in Java and uses the Maven build tool. Thus, you can compile the resolver by typing:
+
+```
+ $ mvn clean compile
+```
+
+To build the resolver executable JAR package you may type:
+
+```
+ $ mvn clean compile package
+```
+
+This command does various things. It creates a thin executable JAR package in the ../docker/resolver/ directory. In contrast to a fat JAR, this package does not contain any dependend JAR files. Instead all dependencies have to be available in the JAVA path, e.g. in the default Maven directory. In order to facilitate the dependencies, the *package* command copies all dependencies to the ../docker/baseimage/ directory.
+
+
+In addition (and because I am a lazy person), there is a Makefile that allows you to build the whole project.
+
+```
+ $ make package
+```
 
 ---
 #### Lead Developers
